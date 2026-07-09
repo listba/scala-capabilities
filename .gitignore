@@ -1,0 +1,13 @@
+# scala
+.metals
+.scala-build
+.bsp
+
+# editor
+.vscode
+
+# OS
+.DS_Store
+
+# AI
+.claude
