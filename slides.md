@@ -1,13 +1,13 @@
 ---
 marp: true
 theme: gaia
-size: "16:9"
 style: |
   .columns {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
   }
+
 ---
 <!-- _class: lead -->
 # Safer Scala 
@@ -76,30 +76,118 @@ src/example-01/$ scala run withFileCaptured.sc
 ---
 ## Tracking Captures as types
 
-
-
----
-## Pure Functions
-
-
----
-## 
-
+type `T` captures capabilities `c_1` ... `c_n`
 ```scala
+T^{c_1, ..., c_n}
 ```
+eg: a function from `A` to `B` that captures value `c`
+```scala
+(A -> B)^{c}
+// or
+A ->{c} B
+```
+
+Note that a standalone `^` eg `T^` is equivilant to `T^{any}`
+and that `T` is equivilant to `T^{}` ie an empty capture set
+capture subtyping will be covered  a bit later
+
+---
+## Capabilities
+
+A capability is semantically a "value of interest". Typically something considered to be "effectual"
+Capabilities are considered "tracked"
+Therefore marking something with `^` means it is a capability
+Anytime something marked as a capability is leaked outside of it's scope results in a compilation error
+
 
 --- 
 ## Transativity
 
+Building off our example from before
+```scala
+trait Foo{ val x: Int }
+def mkFoo(in: InputStream^): Foo = new Foo { val x = 42 }
+
+withFile("data.txt"): in =>
+  val foo = mkFoo(in)
+  foo.x
+```
+
+This compiles, and returns `42`
+`def mkFoo(in: InputStream^): Foo`
+Here we are making a `guarantee` that `Foo` does not capture the `in` capability
+
 ---
-## Separation Checking
+## Transativity (cont)
+However, if instead we had
+
+```scala
+class SneakyFooImpl(val x: Int, in: InputStream) extends Foo
+def mkFoo(in: InputStream^): Foo = SneakyFooImpl(42, in)
+```
+the compiler is going to complain due to `hiding`
+```sh
+src/example-02$ scala run transitiveBad.sc
+[error] Note that capability `in²` cannot flow into capture set {}.
+[error] 
+[error] where:    in  is a value in class SneakyFooImpl
+[error]           in² is a parameter in method mkFoo
+[error] def mkFoo(in: InputStream^): Foo = SneakyFooImpl(42, in)
+```
+
+---
+## Transativity (cont)
+This can be fixed by updating mkFoo to report that we are capturing some capability
+```scala
+def mkFoo(in: InputStream^): Foo^ = SneakyFooImpl(42, in)
+```
+However, we can also refine this a bit, by telling the compiler that we might be capturing `in` 
+or worded slightly differntly we are telling the compiler that mkFoo at most is capturing `in`
+```scala
+def mkFoo(in: InputStream^): Foo^{in} = SneakyFooImpl(42, in)
+```
+
+---
+## Capture subtyping
+
+Based on the previous slides we can start to put together a picture of how subtyping works in our example
+
+```scala
+Foo <: Foo^{in} <: Foo^
+```
+
+Which can be generalized to 
+
+```scala
+T = T^{} <: T <: {c1} <: T{c1,c2} = T{c2,c1}  <: T^ = T^{any}
+```
+
+this means captures can be `widened` to include other known or unknown captures in the group
+
+---
+## Pure and impure Functions
+
+`->` is now a new symbol in scala that means we have a `pure` function
+eg: `A -> B` is equivilant to `A -> {} B`
+
+where as `=>` is defined as an `impure` function that captues and unknown set of capabilities 
+eg `A => B` is equivilant to `A => {any} B`
+
+and  finally `A -> {c1} -> B` is a function that tracks `c1`
+
+thus we have
+```scala
+A -> B <: A -> {c1} -> B <: A -> {} B = A => B
+```
+
+
+---
 
 
 
 ---
 ## Why is this useful?
 
-- AI
 - Stricter compiler checks gives us better confidence in AI Generated code
 - AI "Agent" harnesses built using "capabilities" as permission structure for safer ai generation
     - See paper at end of slides
@@ -115,6 +203,13 @@ TODO: Find any sources on Uptick in rust usage due to AI
 - [Cats MTL](https://github.com/typelevel/cats-mtl) - Algebraic Effect library for cats-effect
     - [Errors as Capabilities](https://typelevel.org/blog/custom-error-types.html)
 - [OCaml OxCaml](https://github.com/oxcaml/oxcaml)
+
+---
+## Theres way more
+
+- [Checked Exceptions](https://docs.scala-lang.org/scala3/reference/experimental/capture-checking/checked-exceptions.html)
+- [Stateful Capabilities](https://docs.scala-lang.org/scala3/reference/experimental/capture-checking/mutability.html)
+- [Seperation Checking](https://docs.scala-lang.org/scala3/reference/experimental/capture-checking/separation-checking.html)
 
 ---
 # Resources
@@ -139,8 +234,6 @@ TODO: Find any sources on Uptick in rust usage due to AI
 </div>
 <div>
 
-## Videos
--
 
 </div>
 
