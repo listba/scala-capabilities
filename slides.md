@@ -18,7 +18,7 @@ style: |
 
 
 ```scala
-var x = 6
+val x = 6
 
 def compute(y: Int): Int = 
     x * y;
@@ -159,7 +159,7 @@ Foo <: Foo^{in} <: Foo^
 Which can be generalized to 
 
 ```scala
-T = T^{} <: T <: {c1} <: T{c1,c2} = T{c2,c1}  <: T^ = T^{any}
+T = T^{} <: T^{c1} <: T^{c1,c2} = T^{c2,c1}  <: T^ = T^{any}
 ```
 
 this means captures can be `widened` to include other known or unknown captures in the group
@@ -177,7 +177,7 @@ and  finally `A -> {c1} -> B` is a function that tracks `c1`
 
 thus we have
 ```scala
-A -> B <: A -> {c1} -> B <: A -> {} B = A => B
+(A -> B) <: (A ->{c1} -> B) <: (A ->{any} B) = A => B
 ```
 
 
